@@ -264,8 +264,7 @@
             try {
                 // 1. 載入資源
                 const url = 'template.pdf';
-                const fontUrl = 'font.ttf'; 
-
+const fontUrl = 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tc@4.5.12/files/noto-sans-tc-chinese-traditional-400-normal.woff';
                 // 使用 Promise.all 平行下載，速度更快
                 const [pdfBytes, fontBytes] = await Promise.all([
                     fetch(url).then(res => {
