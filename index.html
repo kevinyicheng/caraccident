@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>車輛資料填寫系統</title>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.js"></script>
+    
+    <style>
+        :root {
+            --primary-color: #4f46e5; /* 靛藍色 */
+            --primary-hover: #4338ca;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-sub: #6b7280;
+            --border-color: #e5e7eb;
+            --input-focus-ring: rgba(79, 70, 229, 0.2);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-gradient);
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start; /* 讓卡片在長頁面時不會強制置中 */
+        }
+
+        .container {
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            width: 100%;
+            max-width: 600px; /* 稍微寬一點以容納兩欄 */
+            animation: slideUp 0.5s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--text-main);
+            margin-top: 0;
+            font-size: 28px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: var(--text-sub);
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+
+        /* 分隔線與標題 */
+        .section-header {
+            display: flex;
+            align-items: center;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+        .section-header span {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--primary-color);
+            background: #eef2ff;
+            padding: 4px 12px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .section-header .line {
+            flex-grow: 1;
+            height: 1px;
+            background: var(--border-color);
+            margin-left: 15px;
+        }
+
+        /* Grid 佈局系統 (電腦並排，手機單排) */
+        .grid-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 500px) {
+            .grid-row { grid-template-columns: 1fr; gap: 0; }
+        }
+
+        .form-group { margin-bottom: 20px; }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 14px;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 15px;
+            border: 2px solid var(--border-color); /* 加粗邊框 */
+            border-radius: 12px;
+            background-color: #f9fafb;
+            color: var(--text-main);
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            background-color: #fff;
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 4px var(--input-focus-ring);
+        }
+
+        /* 按鈕設計 */
+        button {
+            background: linear-gradient(to right, var(--primary-color), var(--primary-hover));
+            color: white;
+            padding: 16px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.4);
+            transition: transform 0.1s, box-shadow 0.2s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button:hover {
+            box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.5);
+            transform: translateY(-2px);
+        }
+
+        button:active { transform: scale(0.98); }
+        
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 載入動畫 Spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>填寫申請資料</h2>
+        <div class="subtitle">請輸入以下資訊以自動產生文件</div>
+
+        <div class="section-header">
+            <span>基本資料</span>
+            <div class="line"></div>
+        </div>
+        
+        <div class="grid-row">
+            <div class="form-group">
+                <label>姓名</label>
+                <input type="text" id="name" placeholder="王大明">
+            </div>
+            <div class="form-group">
+                <label>身分證字號</label>
+                <input type="text" id="license" placeholder="A123456789" style="text-transform: uppercase;">
+            </div>
+        </div>
+
+        <div class="grid-row">
+            <div class="form-group">
+                <label>手機號碼</label>
+                <input type="tel" id="cell" placeholder="0912-345-678">
+            </div>
+            <div class="form-group">
+                <label>電子信箱</label>
+                <input type="email" id="email" placeholder="name@example.com">
+            </div>
+        </div>
+
+        <div class="section-header">
+            <span>車輛資訊</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="grid-row">
+            <div class="form-group">
+                <label>車牌號碼</label>
+                <input type="text" id="car_num" placeholder="ABC-1234" style="text-transform: uppercase;">
+            </div>
+            <div class="form-group">
+                <label>引擎號碼</label>
+                <input type="text" id="engine" placeholder="請輸入引擎號碼">
+            </div>
+        </div>
+
+        <div class="section-header">
+            <span>通訊地址</span>
+            <div class="line"></div>
+        </div>
+
+        <div class="grid-row">
+            <div class="form-group">
+                <label>縣市</label>
+                <input type="text" id="city" placeholder="台北市">
+            </div>
+            <div class="form-group">
+                <label>區域</label>
+                <input type="text" id="dist" placeholder="信義區">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>詳細地址</label>
+            <input type="text" id="address" placeholder="街道 / 巷弄 / 門牌號碼">
+        </div>
+
+        <button id="submitBtn" onclick="generatePDF()">
+            <div class="spinner" id="loadingSpinner"></div>
+            <span id="btnText">產生並下載 PDF</span>
+        </button>
+    </div>
+
+    <script>
+        async function generatePDF() {
+            // UI 狀態切換：鎖定按鈕，顯示轉圈圈
+            const btn = document.getElementById('submitBtn');
+            const spinner = document.getElementById('loadingSpinner');
+            const btnText = document.getElementById('btnText');
+            
+            btn.disabled = true;
+            spinner.style.display = 'block';
+            btnText.innerText = "文件生成中...";
+
+            const { PDFDocument } = PDFLib;
+
+            try {
+                // 1. 載入資源
+                const url = 'template.pdf';
+                const fontUrl = 'font.ttf'; 
+
+                // 使用 Promise.all 平行下載，速度更快
+                const [pdfBytes, fontBytes] = await Promise.all([
+                    fetch(url).then(res => {
+                        if (!res.ok) throw new Error("找不到 template.pdf");
+                        return res.arrayBuffer();
+                    }),
+                    fetch(fontUrl).then(res => {
+                        if (!res.ok) throw new Error("找不到 font.ttf");
+                        return res.arrayBuffer();
+                    })
+                ]);
+
+                // 2. 處理 PDF
+                const pdfDoc = await PDFDocument.load(pdfBytes);
+                pdfDoc.registerFontkit(window.fontkit);
+                const customFont = await pdfDoc.embedFont(fontBytes);
+                const form = pdfDoc.getForm();
+
+                // 3. 定義欄位清單
+                const fields = [
+                    'name', 'license', 'cell', 'email', 
+                    'car_num', 'engine', 'city', 'dist', 'address'
+                ];
+
+                // 4. 迴圈填寫資料
+                let missingFields = [];
+                fields.forEach(fieldId => {
+                    try {
+                        const val = document.getElementById(fieldId).value;
+                        const field = form.getTextField(fieldId);
+                        field.setText(val);
+                        field.updateAppearances(customFont);
+                    } catch (err) {
+                        missingFields.push(fieldId);
+                    }
+                });
+
+                if (missingFields.length > 0) {
+                    console.warn("PDF 中缺少以下欄位:", missingFields);
+                }
+
+                // 5. 匯出檔案
+                const pdfResult = await pdfDoc.save();
+                download(pdfResult, "車輛申請書_填寫完成.pdf", "application/pdf");
+
+            } catch (error) {
+                console.error("錯誤:", error);
+                alert("發生錯誤！\n請檢查 template.pdf 和 font.ttf 是否在正確位置。");
+            } finally {
+                // 恢復按鈕狀態
+                setTimeout(() => {
+                    btn.disabled = false;
+                    spinner.style.display = 'none';
+                    btnText.innerText = "產生並下載 PDF";
+                }, 1000); // 稍微延遲一點讓使用者看到完成感
+            }
+        }
+
+        function download(data, filename, type) {
+            const file = new Blob([data], {type: type});
+            const a = document.createElement("a");
+            const url = URL.createObjectURL(file);
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);  
+            }, 0); 
+        }
+    </script>
+</body>
+</html>
